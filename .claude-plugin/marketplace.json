@@ -1,5 +1,6 @@
 {
   "name": "claude-harness-marketplace",
+  "description": "Local marketplace for claude-harness: a repository operating harness with hard intake/verification gates.",
   "owner": {
     "name": "bmd"
   },
