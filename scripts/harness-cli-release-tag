@@ -1,0 +1,5 @@
+# Pinned harness-cli release tag (upstream: github.com/hoangnb24/repository-harness).
+# Bump in lockstep with the plugin version. Override at runtime with
+# HARNESS_CLI_RELEASE_TAG (or HARNESS_CLI_BASE_URL for a mirror / offline copy).
+# The first non-comment token on a line is used.
+harness-cli-v0.1.10

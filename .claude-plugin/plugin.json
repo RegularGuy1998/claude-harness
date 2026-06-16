@@ -1,0 +1,20 @@
+{
+  "name": "claude-harness",
+  "description": "Repository operating harness for Claude Code: feature intake, risk lanes, story packets + test matrix, decision records, trace/friction capture, and HARD verification gates backed by a durable harness-cli (SQLite). Composes with the superpowers plugin for engineering discipline.",
+  "version": "0.1.0",
+  "author": {
+    "name": "bmd"
+  },
+  "license": "MIT",
+  "keywords": [
+    "harness",
+    "skills",
+    "hooks",
+    "intake",
+    "risk-lanes",
+    "verification",
+    "traces",
+    "sqlite",
+    "governance"
+  ]
+}

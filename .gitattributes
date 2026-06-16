@@ -1,0 +1,4 @@
+# Hook scripts run under bash on every platform; CRLF would break them.
+# Force LF on checkout regardless of core.autocrlf.
+* text=auto eol=lf
+*.exe binary

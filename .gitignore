@@ -1,0 +1,8 @@
+# Test artifacts
+tests/tmp/
+tests/fixtures/bin/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db

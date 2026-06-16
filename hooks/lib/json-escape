@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Sourceable JSON helpers for claude-harness hooks.
+#
+# escape_for_json: escape a string so it can be embedded inside a JSON string
+# value. Uses bash parameter substitution (single C-level pass each) — fast and
+# dependency-free. Mirrors the technique used by the superpowers plugin.
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}

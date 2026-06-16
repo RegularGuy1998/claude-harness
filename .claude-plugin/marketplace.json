@@ -1,0 +1,14 @@
+{
+  "name": "claude-harness-marketplace",
+  "owner": {
+    "name": "bmd"
+  },
+  "plugins": [
+    {
+      "name": "claude-harness",
+      "source": "./",
+      "description": "Repository operating harness for Claude Code: intake, risk lanes, story/test-matrix, traces, and HARD verification gates backed by a durable harness-cli.",
+      "version": "0.1.0"
+    }
+  ]
+}

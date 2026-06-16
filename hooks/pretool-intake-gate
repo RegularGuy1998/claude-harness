@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# PreToolUse gate (Edit|Write|MultiEdit): block code edits in an INITIALIZED
+# project that has no recorded intake. Turns the harness's "classify first"
+# rule into a hard gate.
+#
+# FAIL-OPEN by design: no DB (project not opted in), no binary, a query error,
+# or a harness/spec bookkeeping path all ALLOW. The gate must never brick a
+# project that does not use the harness.
+set -uo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/harness-env
+. "$DIR/lib/harness-env"
+
+input="$(cat 2>/dev/null || true)"
+
+allow() { exit 0; }   # silent allow == normal permission flow
+
+# Project not opted in (no harness.db) -> allow.
+he_have_db || allow
+# Binary unavailable -> advisory mode -> allow.
+if ! he_have_binary; then
+  echo "claude-harness: harness-cli unavailable; intake gate is advisory" >&2
+  allow
+fi
+
+# Exempt harness bookkeeping and spec/story docs so recording intake / writing
+# story packets is never self-blocked.
+file_path="$(printf '%s' "$input" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+case "$file_path" in
+  *.harness/*|*.harness\\*|*docs/stories/*|*docs/superpowers/*) allow ;;
+esac
+
+# Count intakes. Fail-open if the query itself errors.
+rows="$(he_cli query sql "SELECT COUNT(*) FROM intake" 2>/dev/null)"; rc=$?
+[ "$rc" -eq 0 ] || allow
+count="$(printf '%s' "$rows" | tail -n +3 | head -n1 | tr -dc '0-9')"; count="${count:-0}"
+if [ "$count" -gt 0 ] 2>/dev/null; then allow; fi
+
+# Initialized project, zero intakes -> DENY the edit.
+cat <<'JSON'
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "claude-harness: no feature intake recorded for this project. Run /claude-harness:intake to classify the work (input type + risk lane) before editing code. This gate is intentional; do not work around it."
+  }
+}
+JSON
+exit 0

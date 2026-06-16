@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# SessionStart hook for claude-harness.
+# 1. Bootstrap the binary + project .harness/ (degrade silently on failure).
+# 2. Inject the using-claude-harness skill body so the harness workflow is
+#    active for the whole session.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=lib/harness-env
+. "$PLUGIN_ROOT/hooks/lib/harness-env"
+# shellcheck source=lib/json-escape
+. "$PLUGIN_ROOT/hooks/lib/json-escape"
+
+advisory=""
+if bin="$(he_ensure_binary 2>/dev/null)"; then
+  he_materialize_project "$bin" 2>/dev/null || advisory=" Could not write .harness/ in this project — harness gates run in ADVISORY mode."
+else
+  advisory=" harness-cli could not be fetched — harness gates run in ADVISORY mode (no hard blocking)."
+fi
+
+skill_body="$(cat "$PLUGIN_ROOT/skills/using-claude-harness/SKILL.md" 2>/dev/null || echo "claude-harness bootstrap content unavailable.")"
+
+context="<EXTREMELY_IMPORTANT>
+You are operating in a repository governed by the claude-harness plugin.${advisory}
+
+Below is the full content of your 'claude-harness:using-claude-harness' skill — your entry point to the harness workflow. For all other skills, use the Skill tool.
+
+${skill_body}
+</EXTREMELY_IMPORTANT>"
+
+escaped="$(escape_for_json "$context")"
+
+# Claude Code reads hookSpecificOutput.additionalContext; other runtimes read
+# additionalContext at top level. Emit the field the current runtime consumes.
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped"
+else
+  printf '{\n  "additionalContext": "%s"\n}\n' "$escaped"
+fi
+exit 0

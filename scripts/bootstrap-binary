@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Ensure the harness-cli binary is cached and the current project's .harness/
+# workspace is materialized. Prints the binary path on success.
+#
+# Exit codes: 0 ok | 1 binary unavailable | 2 binary ok but workspace not writable.
+# Callers (session-start) treat any non-zero as "advisory mode" and continue.
+set -uo pipefail
+
+_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../hooks/lib/harness-env
+. "$_dir/../hooks/lib/harness-env"
+
+bin="$(he_ensure_binary)" || { echo "claude-harness: harness-cli unavailable" >&2; exit 1; }
+he_materialize_project "$bin" || { echo "claude-harness: could not materialize .harness/" >&2; exit 2; }
+printf '%s\n' "$bin"

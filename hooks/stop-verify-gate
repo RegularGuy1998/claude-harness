@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Stop gate: block ending the turn while an in-progress story has a verification
+# command that has not passed. Turns "verify before done" into a hard gate.
+#
+# Loop-safe: when this hook has already blocked once, Claude Code sets
+# stop_hook_active=true on the next Stop; we then ALLOW so the human is never
+# trapped. FAIL-OPEN on no DB / no binary / query error.
+set -uo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/harness-env
+. "$DIR/lib/harness-env"
+
+input="$(cat 2>/dev/null || true)"
+
+allow() { exit 0; }
+
+# Loop guard: we already blocked this stop sequence -> let it stop now.
+case "$input" in
+  *'"stop_hook_active":true'*|*'"stop_hook_active": true'*) allow ;;
+esac
+
+he_have_db || allow
+he_have_binary || allow
+
+q="SELECT id FROM story WHERE status='in_progress' AND verify_command IS NOT NULL AND (last_verified_result IS NULL OR last_verified_result<>'pass')"
+rows="$(he_cli query sql "$q" 2>/dev/null)"; rc=$?
+[ "$rc" -eq 0 ] || allow
+
+ids="$(printf '%s' "$rows" | tail -n +3 | sed '/^[[:space:]]*$/d' | tr -d ' ' | paste -sd' ' -)"
+[ -n "$ids" ] || allow
+
+reason="claude-harness: story ${ids} is in progress with an unmet verification gate. Run /claude-harness:verify (it must exit 0) and record a trace with /claude-harness:trace before ending. If you must stop without passing, say so plainly to the user."
+printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$reason"
+exit 0
