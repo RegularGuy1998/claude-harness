@@ -30,6 +30,12 @@ Then open a project and run `/claude-harness:intake "<your request>"` to opt tha
 
 **Windows:** requires Git for Windows (hooks run through a polyglot bash wrapper). See `docs/INSTALL.md`.
 
+## Usage
+
+Open a new session in a project, then drive the loop with `/claude-harness:intake` →
+`:story` → `:verify` → `:trace`. The full guide (mental model, a worked example, the
+gates, CLI cheat-sheet, and troubleshooting) is in **[docs/USAGE.md](docs/USAGE.md)**.
+
 ## Skills
 
 | Skill | When |
