@@ -56,4 +56,6 @@ worked example, the gates, CLI cheat-sheet, and troubleshooting) is in
 
 ## Status
 
-v0.1.0. The durable CLI and its release binaries come from [hoangnb24/repository-harness](https://github.com/hoangnb24/repository-harness) (pinned in `scripts/harness-cli-release-tag`). See `docs/enforcement.md` for how the gates work and how they degrade.
+v0.1.0. The durable CLI (`harness-cli`) is vendored in [crates/harness-cli/](crates/harness-cli/) and built + published from this repo's own GitHub Releases (pinned in `scripts/harness-cli-release-tag`); the plugin downloads it on first session. See `docs/enforcement.md` for how the gates work and how they degrade.
+
+`harness-cli` is derived from third-party MIT-licensed code; the original copyright is preserved in [crates/harness-cli/LICENSE](crates/harness-cli/LICENSE).

@@ -55,17 +55,17 @@ Render `docs/context/PROJECT_CONTEXT.md` using `references/context-pack-template
 ```bash
 .harness/harness init        # create harness.db if absent (idempotent)
 .harness/harness migrate     # apply pending migrations (brings older DBs to the project_context table)
-
-SHA="$(sha256sum docs/context/PROJECT_CONTEXT.md | awk '{print $1}')"   # or: shasum -a 256 ...
-.harness/harness query sql "INSERT INTO project_context(kind,path,sha256,summary) VALUES('pack','docs/context/PROJECT_CONTEXT.md','$SHA','<one-line summary>')"
+.harness/harness context capture --path docs/context/PROJECT_CONTEXT.md --summary "<one-line summary>"
 ```
 
-> **Quoting:** `query sql` takes a raw string. Keep `<one-line summary>` on one line and replace any `'` with `''`. `path` and the hash are quote-safe.
+`context capture` hashes the file automatically (so the harness can later detect a stale pack);
+pass `--sha256 <hash>` to override, or `--kind note` / `--notes "..."` as needed. No raw SQL, no
+quote-escaping.
 
 ### 4. Confirm
 
 ```bash
-.harness/harness query sql "SELECT id,kind,path,sha256,summary,captured_at FROM project_context ORDER BY id DESC LIMIT 1"
+.harness/harness context show
 ```
 
 ## Terminal state
@@ -76,6 +76,6 @@ Onboarding creates the DB but records **no intake** — so the next code edit st
 
 - Writing the pack from assumptions instead of reading manifests/README.
 - Putting the pack under `.harness/` (git-ignored) — it must live at `docs/context/PROJECT_CONTEXT.md` so it is committed and shared.
-- Recording the row but skipping the `sha256` — staleness detection goes blind.
+- Writing the pack file but never running `context capture` — the harness then can't point sessions at it or detect staleness.
 - Treating onboarding as the intake — it is not; classify the first change separately.
 - Re-onboarding every session — do it once; refresh only when the pack is stale or the project structure changed.

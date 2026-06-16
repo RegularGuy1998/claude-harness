@@ -115,6 +115,18 @@ P="$(new_project)"
   [ "$(he_context_status)" = "read" ] || { echo "want read, got $(he_context_status)"; exit 14; }
 ) && ok "silent -> onboard -> read-stale -> read" || no "he_context_status transition wrong"
 
+echo "== T8: context capture/show subcommand =="
+P="$(new_project)"; cli "$P" init >/dev/null 2>&1; cli "$P" migrate >/dev/null 2>&1
+mkdir -p "$P/docs/context"; printf 'pack body' > "$P/docs/context/PROJECT_CONTEXT.md"
+( cd "$P" && "$P/.harness/harness" context capture --path docs/context/PROJECT_CONTEXT.md --summary "smoke pack" >/dev/null 2>&1 )
+case "$(cli "$P" context show 2>/dev/null)" in
+  *docs/context/PROJECT_CONTEXT.md*) ok "context capture + show records the pack";; *) no "context show missing row";;
+esac
+SHA_STORED="$(cli "$P" query sql "SELECT sha256 FROM project_context ORDER BY id DESC LIMIT 1" 2>/dev/null | tail -n +3 | head -n1 | tr -dc 'a-f0-9')"
+if command -v sha256sum >/dev/null 2>&1; then SHA_FILE="$(sha256sum "$P/docs/context/PROJECT_CONTEXT.md" | awk '{print $1}')"
+else SHA_FILE="$(shasum -a 256 "$P/docs/context/PROJECT_CONTEXT.md" | awk '{print $1}')"; fi
+{ [ -n "$SHA_STORED" ] && [ "$SHA_STORED" = "$SHA_FILE" ]; } && ok "context capture auto-hashes the file" || no "auto-hash mismatch" "$SHA_STORED vs $SHA_FILE"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]

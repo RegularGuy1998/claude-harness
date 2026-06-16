@@ -72,16 +72,21 @@ he_release_tag() {
   printf '%s' "$tag"
 }
 
+# GitHub repo that hosts the harness-cli release assets (private). Override with
+# HARNESS_CLI_RELEASE_REPO; the binary is built and published by this repo's CI.
+he_release_repo() { printf '%s' "${HARNESS_CLI_RELEASE_REPO:-RegularGuy1998/claude-harness}"; }
+
 he_base_url() {
   if [ -n "${HARNESS_CLI_BASE_URL:-}" ]; then
     printf '%s' "$HARNESS_CLI_BASE_URL"
     return
   fi
+  local repo; repo="$(he_release_repo)"
   local tag; tag="$(he_release_tag)"
   if [ -n "$tag" ] && [ "$tag" != "latest" ]; then
-    printf 'https://github.com/hoangnb24/repository-harness/releases/download/%s' "$tag"
+    printf 'https://github.com/%s/releases/download/%s' "$repo" "$tag"
   else
-    printf 'https://github.com/hoangnb24/repository-harness/releases/latest/download'
+    printf 'https://github.com/%s/releases/latest/download' "$repo"
   fi
 }
 
@@ -106,19 +111,44 @@ he_sha256_file() {
 # Binary bootstrap
 # ---------------------------------------------------------------------------
 
+# Download one release asset to a destination file. Tries the gh CLI first
+# (handles the PRIVATE release via the user's existing auth), then curl with a
+# token (CI / GH_TOKEN), then anonymous curl (mirror via HARNESS_CLI_BASE_URL).
+# Returns non-zero if every method fails.
+he_download_asset() {
+  local asset="$1" dest="$2"
+  local tag; tag="$(he_release_tag)"
+  # 1) gh CLI — robust for private repos.
+  if command -v gh >/dev/null 2>&1 && [ -n "$tag" ] && [ "$tag" != "latest" ]; then
+    if gh release download "$tag" --repo "$(he_release_repo)" --pattern "$asset" \
+         --output "$dest" --clobber >/dev/null 2>&1; then
+      [ -s "$dest" ] && return 0
+    fi
+  fi
+  command -v curl >/dev/null 2>&1 || return 1
+  local url; url="$(he_base_url)/$asset"
+  # 2) curl with a token (private asset; -L follows the signed redirect).
+  local token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+  if [ -n "$token" ] \
+     && curl -fsSL -H "Authorization: Bearer $token" "$url" -o "$dest" 2>/dev/null \
+     && [ -s "$dest" ]; then
+    return 0
+  fi
+  # 3) anonymous (mirror / public release).
+  curl -fsSL "$url" -o "$dest" 2>/dev/null && [ -s "$dest" ]
+}
+
 # Ensure the binary is cached. Prints its path on success; returns non-zero on
 # any failure (caller degrades to advisory mode). Idempotent.
 he_ensure_binary() {
   local bin; bin="$(he_binary_path)"
   if [ -f "$bin" ]; then printf '%s' "$bin"; return 0; fi
-  command -v curl >/dev/null 2>&1 || return 1
   local platform; platform="$(he_detect_platform)" || return 1
   local ext=""; he_is_windows && ext=".exe"
   local asset="harness-cli-${platform}${ext}"
-  local url; url="$(he_base_url)/$asset"
   local tmp; tmp="$(mktemp -d)" || return 1
-  if ! curl -fsSL "$url" -o "$tmp/$asset" 2>/dev/null \
-     || ! curl -fsSL "$url.sha256" -o "$tmp/$asset.sha256" 2>/dev/null; then
+  if ! he_download_asset "$asset" "$tmp/$asset" \
+     || ! he_download_asset "$asset.sha256" "$tmp/$asset.sha256"; then
     rm -rf "$tmp"; return 1
   fi
   local expected actual

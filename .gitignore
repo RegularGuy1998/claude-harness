@@ -3,6 +3,12 @@ tests/tmp/
 tests/fixtures/bin/
 *.log
 
+# Rust build artifacts (vendored harness-cli crate)
+/target/
+
+# A materialized harness workspace if this repo is ever opened as a project
+.harness/
+
 # OS / editor
 .DS_Store
 Thumbs.db

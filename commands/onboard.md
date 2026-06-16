@@ -15,9 +15,8 @@ Steps:
    ```bash
    .harness/harness init
    .harness/harness migrate
-   SHA="$(sha256sum docs/context/PROJECT_CONTEXT.md | awk '{print $1}')"   # or: shasum -a 256 ...
-   .harness/harness query sql "INSERT INTO project_context(kind,path,sha256,summary) VALUES('pack','docs/context/PROJECT_CONTEXT.md','$SHA','<one-line summary>')"
-   .harness/harness query sql "SELECT id,kind,path,sha256,summary,captured_at FROM project_context ORDER BY id DESC LIMIT 1"
+   .harness/harness context capture --path docs/context/PROJECT_CONTEXT.md --summary "<one-line summary>"
+   .harness/harness context show
    ```
-   Keep the summary on one line; escape any `'` as `''`.
+   `context capture` hashes the file automatically (override with `--sha256`); no manual SQL or quoting.
 5. Report what was captured. Onboarding records NO intake — the first code edit still requires `/claude-harness:intake`.

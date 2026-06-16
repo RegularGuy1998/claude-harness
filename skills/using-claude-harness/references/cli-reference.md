@@ -57,18 +57,19 @@ On Windows, invoke through Git Bash. Lanes on the CLI use the hyphenated form
 ## Project context (onboarding)
 
 The `harness-onboard-context` skill stores a pointer to the committed context-pack
-in the `project_context` table (schema migration 006). There is no dedicated
-subcommand yet, so read/write it through `query sql`:
+in the `project_context` table (schema migration 006). Use the first-class command:
 
 ```bash
-# Record (after writing docs/context/PROJECT_CONTEXT.md):
-SHA="$(sha256sum docs/context/PROJECT_CONTEXT.md | awk '{print $1}')"   # or: shasum -a 256 ...
-.harness/harness query sql "INSERT INTO project_context(kind,path,sha256,summary) VALUES('pack','docs/context/PROJECT_CONTEXT.md','$SHA','<one line>')"
+# Capture (after writing docs/context/PROJECT_CONTEXT.md); the file is hashed automatically:
+.harness/harness context capture --path docs/context/PROJECT_CONTEXT.md --summary "<one line>" \
+  [--kind pack|note] [--sha256 <hash>] [--notes "..."]
 
-# Inspect the latest captured pack:
-.harness/harness query sql "SELECT id,kind,path,sha256,summary,captured_at FROM project_context ORDER BY id DESC LIMIT 1"
+# Inspect captured pointers:
+.harness/harness context show          # latest only
+.harness/harness context show --all    # every row
+.harness/harness query context         # same as show --all
 ```
 
 Columns: `id, captured_at, kind ('pack'|'note'), path, sha256, summary, notes`.
-Keep `summary` on one line and escape any `'` as `''`. `migrate` brings an older
-project DB up to this table; `init` includes it on a fresh project.
+`migrate` brings an older project DB up to this table; `init` includes it on a fresh project.
+Advisory fallback: the same row can be written with `query sql "INSERT INTO project_context(...)"`.
