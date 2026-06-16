@@ -188,3 +188,35 @@ he_sql_count() {
   v="$(he_sql_rows "$1" | head -n1 | tr -dc '0-9')"
   printf '%s' "${v:-0}"
 }
+
+# ---------------------------------------------------------------------------
+# Project context-pack (onboarding) status
+# ---------------------------------------------------------------------------
+
+# Repo-relative committed context-pack the onboarding skill produces.
+he_context_pack_path() { printf '%s/docs/context/PROJECT_CONTEXT.md' "$HE_PROJECT_DIR"; }
+
+# Print a one-word status for the onboarding context-pack. FAIL-OPEN: any error
+# degrades toward 'read' (if the file is there) or 'silent' (if not).
+#   read        - pack file exists and matches the recorded hash; just read it
+#   read-stale  - pack file exists but is unrecorded or its hash has drifted
+#   onboard     - project opted in (DB present) but no pack file -> nudge
+#   silent      - nothing to surface (not opted in and no pack file)
+he_context_status() {
+  local pack; pack="$(he_context_pack_path)"
+  if [ -f "$pack" ]; then
+    if he_have_binary && he_have_db; then
+      local recorded current
+      recorded="$(he_sql_rows "SELECT sha256 FROM project_context WHERE kind='pack' ORDER BY id DESC LIMIT 1" 2>/dev/null | head -n1 | tr -dc 'a-f0-9')"
+      if [ -n "$recorded" ]; then
+        current="$(he_sha256_file "$pack" 2>/dev/null | tr -dc 'a-f0-9')"
+        if [ -n "$current" ] && [ "$current" = "$recorded" ]; then printf 'read'; return; fi
+        printf 'read-stale'; return
+      fi
+      printf 'read-stale'; return   # file exists but the harness has no record of it
+    fi
+    printf 'read'; return
+  fi
+  if he_have_binary && he_have_db; then printf 'onboard'; return; fi
+  printf 'silent'
+}

@@ -24,11 +24,12 @@ if ! he_have_binary; then
   allow
 fi
 
-# Exempt harness bookkeeping and spec/story docs so recording intake / writing
-# story packets is never self-blocked.
+# Exempt harness bookkeeping, spec/story docs, and the onboarding context-pack
+# so recording intake / writing story packets / capturing context is never
+# self-blocked.
 file_path="$(printf '%s' "$input" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
 case "$file_path" in
-  *.harness/*|*.harness\\*|*docs/stories/*|*docs/superpowers/*) allow ;;
+  *.harness/*|*.harness\\*|*docs/stories/*|*docs/superpowers/*|*docs/context/*|*docs\\context\\*) allow ;;
 esac
 
 # Count intakes. Fail-open if the query itself errors.

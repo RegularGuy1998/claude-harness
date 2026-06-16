@@ -32,15 +32,18 @@ Then open a project and run `/claude-harness:intake "<your request>"` to opt tha
 
 ## Usage
 
-Open a new session in a project, then drive the loop with `/claude-harness:intake` →
-`:story` → `:verify` → `:trace`. The full guide (mental model, a worked example, the
-gates, CLI cheat-sheet, and troubleshooting) is in **[docs/USAGE.md](docs/USAGE.md)**.
+Open a new session in a project. On a new repo (or a fresh clone), run
+`/claude-harness:onboard` once to capture a durable context-pack, then drive the loop with
+`/claude-harness:intake` → `:story` → `:verify` → `:trace`. The full guide (mental model, a
+worked example, the gates, CLI cheat-sheet, and troubleshooting) is in
+**[docs/USAGE.md](docs/USAGE.md)**.
 
 ## Skills
 
 | Skill | When |
 |---|---|
 | `using-claude-harness` | Auto-loaded each session; the intake → work → verify → trace loop. |
+| `harness-onboard-context` | New repo / fresh clone / stale pack: capture a durable project context-pack. |
 | `harness-intake` | Before editing code: classify input + risk lane. |
 | `harness-story` | Normal/high-risk work needing a story + test matrix. |
 | `harness-verification-before-completion` | Before claiming done/fixed/passing. |
@@ -49,7 +52,7 @@ gates, CLI cheat-sheet, and troubleshooting) is in **[docs/USAGE.md](docs/USAGE.
 
 ## Slash commands
 
-`/claude-harness:intake`, `:story`, `:verify`, `:trace`, `:audit`, `:harness-status`.
+`/claude-harness:onboard`, `:intake`, `:story`, `:verify`, `:trace`, `:audit`, `:harness-status`.
 
 ## Status
 

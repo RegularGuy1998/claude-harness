@@ -62,6 +62,27 @@ see Troubleshooting.
 > The session-start step creates the launcher and schema but **not** the database. The DB
 > is created the first time you record an intake — that is the opt-in moment.
 
+### Onboard a project's context (new repo / fresh clone)
+
+A fresh project gives the agent the harness *method* but no knowledge of *this* repo. Run
+**once** on a new project to capture a durable, committed context-pack:
+
+```
+/claude-harness:onboard
+```
+
+The agent reads the manifests/README/layout and writes `docs/context/PROJECT_CONTEXT.md`
+(stack, key paths, build/test/run commands, conventions), then records a pointer + content
+hash in the harness. Storage is **hybrid**: the readable content is the committed markdown
+(shared via git); the DB row (`project_context` table) is only the governance signal so the
+session-start hook can tell when the pack is **missing or stale** and nudge you.
+
+- On later sessions the hook says *"read docs/context/PROJECT_CONTEXT.md"* — so a teammate's
+  committed pack onboards you even before you opt in.
+- Onboarding records **no intake** — the first code edit still goes through the intake gate.
+- Refresh with `/claude-harness:onboard` when the stack/paths/commands change (the hook flags
+  a drifted pack as stale).
+
 ---
 
 ## 3. The daily loop
@@ -72,6 +93,7 @@ below are the explicit equivalents if you want to drive it yourself.
 
 | You want to… | Slash command | Gate involved |
 |---|---|---|
+| Onboard a new project's context (stack, paths, commands) | `/claude-harness:onboard` | — (writes `docs/context/`, exempt from the edit gate) |
 | Start any change (add / fix / build / refactor) | `/claude-harness:intake "what you want"` | **PreToolUse** blocks the first edit if no intake exists |
 | Turn normal/high-risk work into a tracked story | `/claude-harness:story US-001 "title"` | — |
 | Prove it before saying "done" | `/claude-harness:verify US-001` | **Stop** blocks ending the turn until verify passes |
@@ -150,8 +172,9 @@ or a query error all result in *allow*. The harness never bricks a repo. Full de
 
 - **PreToolUse** (`Edit|Write|MultiEdit`): if the project is initialized and has **zero
   intakes**, the edit is denied. It's a *first-edit* gate — one recorded intake opens editing
-  for the session. Paths under `.harness/`, `docs/stories/`, and `docs/superpowers/` are
-  exempt so recording intake / writing story & spec docs is never self-blocked.
+  for the session. Paths under `.harness/`, `docs/stories/`, `docs/superpowers/`, and
+  `docs/context/` are exempt so recording intake / writing story, spec, and context-pack
+  docs is never self-blocked.
 - **Stop**: if any story is `in_progress` with a `verify_command` whose last result isn't
   `pass`, ending the turn is blocked. Loop-safe via `stop_hook_active` (blocks once, then
   allows). The only real way past is to make `story verify` actually pass.

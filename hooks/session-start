@@ -21,12 +21,29 @@ fi
 
 skill_body="$(cat "$PLUGIN_ROOT/skills/using-claude-harness/SKILL.md" 2>/dev/null || echo "claude-harness bootstrap content unavailable.")"
 
+# Surface the onboarding context-pack (fail-open: silent on any error).
+ctx_note=""
+case "$(he_context_status 2>/dev/null || echo silent)" in
+  read)
+    ctx_note="
+
+This repository has a project context-pack at docs/context/PROJECT_CONTEXT.md — READ IT NOW for the stack, key paths, build/test commands, and conventions before doing project work." ;;
+  read-stale)
+    ctx_note="
+
+This repository has a project context-pack at docs/context/PROJECT_CONTEXT.md — READ IT NOW. It is unrecorded or may be out of date; consider refreshing it with /claude-harness:onboard." ;;
+  onboard)
+    ctx_note="
+
+This project has no context-pack yet. Consider running /claude-harness:onboard to capture its stack, key paths, build/test commands, and conventions for future sessions." ;;
+esac
+
 context="<EXTREMELY_IMPORTANT>
 You are operating in a repository governed by the claude-harness plugin.${advisory}
 
 Below is the full content of your 'claude-harness:using-claude-harness' skill — your entry point to the harness workflow. For all other skills, use the Skill tool.
 
-${skill_body}
+${skill_body}${ctx_note}
 </EXTREMELY_IMPORTANT>"
 
 escaped="$(escape_for_json "$context")"

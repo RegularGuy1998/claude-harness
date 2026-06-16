@@ -17,6 +17,10 @@ Always invoke through the project launcher (env is pre-wired):
 
 If `.harness/harness` does not exist, the project has not opted in yet — running `/claude-harness:intake` (or `.harness/harness init`) creates it. On Windows, run via Git Bash.
 
+## Project context
+
+If `docs/context/PROJECT_CONTEXT.md` exists, **read it** — it is the project's durable context-pack (stack, key paths, build/test commands, conventions) and the session-start hook will point you to it. If the project is new (or the hook nudges that the pack is missing/stale), capture it once → invoke `claude-harness:harness-onboard-context`. Onboarding records *what the project is*; it does not record an intake, so the first code edit still goes through the intake gate.
+
 ## The Loop (every task)
 
 1. **Classify before editing.** Before changing ANY code, record an intake → invoke `claude-harness:harness-intake`. This assigns a **risk lane** (tiny / normal / high-risk). A `PreToolUse` hook hard-blocks edits in an initialized project that has no intake.

@@ -85,6 +85,36 @@ OUT="$(CLAUDE_PROJECT_DIR="$P" HARNESS_CLI_BIN="/nonexistent/harness-cli" bash "
 OUT="$(CLAUDE_PROJECT_DIR="$P" HARNESS_CLI_BIN="/nonexistent/harness-cli" bash "$ROOT/hooks/stop-verify-gate" <<<'{}' 2>/dev/null)"; RC=$?
 { [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "missing binary -> Stop allow (advisory)" || no "missing binary should allow stop" "$OUT"
 
+echo "== T5: project_context (onboarding) =="
+P="$(new_project)"; cli "$P" init >/dev/null 2>&1; cli "$P" migrate >/dev/null 2>&1
+case "$(cli "$P" query sql "SELECT name FROM sqlite_master WHERE type='table' AND name='project_context'" 2>/dev/null)" in
+  *project_context*) ok "init/migrate creates project_context table";; *) no "project_context table missing";;
+esac
+cli "$P" query sql "INSERT INTO project_context(kind,path,sha256,summary) VALUES('pack','docs/context/PROJECT_CONTEXT.md','deadbeef','t')" >/dev/null 2>&1
+case "$(cli "$P" query sql "SELECT path FROM project_context ORDER BY id DESC LIMIT 1" 2>/dev/null)" in
+  *docs/context/PROJECT_CONTEXT.md*) ok "query sql INSERT writes a context row";; *) no "context row not written";;
+esac
+
+echo "== T6: intake gate exempts docs/context/ =="
+P="$(new_project)"; cli "$P" init >/dev/null 2>&1
+run_gate pretool-intake-gate "$P" '{"tool_name":"Write","tool_input":{"file_path":"'"$P"'/docs/context/PROJECT_CONTEXT.md"}}'
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "docs/context path -> allow (no intake needed)" || no "docs/context should be exempt" "$OUT"
+
+echo "== T7: he_context_status transitions =="
+P="$(new_project)"
+(
+  export CLAUDE_PLUGIN_ROOT="$ROOT" CLAUDE_PROJECT_DIR="$P" HARNESS_CLI_BIN="$FIX_BIN"
+  . "$ROOT/hooks/lib/harness-env"
+  [ "$(he_context_status)" = "silent" ] || { echo "want silent, got $(he_context_status)"; exit 11; }
+  cli "$P" init >/dev/null 2>&1; cli "$P" migrate >/dev/null 2>&1
+  [ "$(he_context_status)" = "onboard" ] || { echo "want onboard, got $(he_context_status)"; exit 12; }
+  mkdir -p "$P/docs/context"; printf 'hello world' > "$P/docs/context/PROJECT_CONTEXT.md"
+  [ "$(he_context_status)" = "read-stale" ] || { echo "want read-stale, got $(he_context_status)"; exit 13; }
+  SHA="$(he_sha256_file "$P/docs/context/PROJECT_CONTEXT.md")"
+  cli "$P" query sql "INSERT INTO project_context(kind,path,sha256,summary) VALUES('pack','docs/context/PROJECT_CONTEXT.md','$SHA','t')" >/dev/null 2>&1
+  [ "$(he_context_status)" = "read" ] || { echo "want read, got $(he_context_status)"; exit 14; }
+) && ok "silent -> onboard -> read-stale -> read" || no "he_context_status transition wrong"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]

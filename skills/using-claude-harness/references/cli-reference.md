@@ -51,5 +51,24 @@ On Windows, invoke through Git Bash. Lanes on the CLI use the hyphenated form
 .harness/harness propose [--commit]           # proposals from friction/interventions/drift
 .harness/harness query <matrix|backlog|decisions|intakes|traces|friction|tools|interventions|stats|sql>
 .harness/harness query matrix [--numeric]     # proof matrix (numeric mirrors CLI input)
-.harness/harness query sql "<SELECT ...>"      # arbitrary SQL (read carefully; output has header + separator)
+.harness/harness query sql "<SELECT ...>"      # arbitrary SQL — reads AND writes (INSERT/UPDATE), not SELECT-only
 ```
+
+## Project context (onboarding)
+
+The `harness-onboard-context` skill stores a pointer to the committed context-pack
+in the `project_context` table (schema migration 006). There is no dedicated
+subcommand yet, so read/write it through `query sql`:
+
+```bash
+# Record (after writing docs/context/PROJECT_CONTEXT.md):
+SHA="$(sha256sum docs/context/PROJECT_CONTEXT.md | awk '{print $1}')"   # or: shasum -a 256 ...
+.harness/harness query sql "INSERT INTO project_context(kind,path,sha256,summary) VALUES('pack','docs/context/PROJECT_CONTEXT.md','$SHA','<one line>')"
+
+# Inspect the latest captured pack:
+.harness/harness query sql "SELECT id,kind,path,sha256,summary,captured_at FROM project_context ORDER BY id DESC LIMIT 1"
+```
+
+Columns: `id, captured_at, kind ('pack'|'note'), path, sha256, summary, notes`.
+Keep `summary` on one line and escape any `'` as `''`. `migrate` brings an older
+project DB up to this table; `init` includes it on a fresh project.
