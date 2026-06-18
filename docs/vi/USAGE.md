@@ -192,7 +192,7 @@ claude plugin marketplace update claude-harness-marketplace
 claude plugin update claude-harness@claude-harness-marketplace   # khởi động lại để áp dụng
 ```
 
-**Thư mục cục bộ so với nguồn GitHub.** Marketplace của máy này trỏ vào thư mục cục bộ (rất hợp cho phát triển). Repo GitHub (`RegularGuy1998/claude-harness`, private) dùng để cài trên máy khác — những máy đó cần xác thực `gh`/git có quyền truy cập repo. Binary `harness-cli` được build và phát hành từ GitHub Releases của chính repo private này, nên việc tải ở phiên đầu cần `gh` (hoặc `GH_TOKEN`/`GITHUB_TOKEN`) có quyền truy cập; không có nó thì các cổng hạ xuống advisory. Ghi đè nguồn bằng `HARNESS_CLI_RELEASE_REPO` / `HARNESS_CLI_BASE_URL`, hoặc trỏ `HARNESS_CLI_BIN` vào một bản build cục bộ.
+**Thư mục cục bộ so với nguồn GitHub.** Marketplace của máy này trỏ vào thư mục cục bộ (rất hợp cho phát triển). Repo GitHub (`RegularGuy1998/claude-harness`, public) dùng để cài trên máy khác. Binary `harness-cli` được build và phát hành từ GitHub Releases của repo này; vì repo là public nên việc tải ở phiên đầu chạy ẩn danh — không cần xác thực. Nếu có sẵn `gh` hoặc `GH_TOKEN`/`GITHUB_TOKEN` thì vẫn được dùng tự động (tiện để tránh giới hạn API rate limit). Ghi đè nguồn bằng `HARNESS_CLI_RELEASE_REPO` / `HARNESS_CLI_BASE_URL`, hoặc trỏ `HARNESS_CLI_BIN` vào một bản build cục bộ.
 
 **Reset một project.** Xóa thư mục `.harness/` của nó (đã git-ignore). Cache binary nằm dưới thư mục dữ liệu của plugin và được chia sẻ giữa các project.
 

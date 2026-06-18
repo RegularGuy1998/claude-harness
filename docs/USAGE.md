@@ -243,11 +243,11 @@ claude plugin update claude-harness@claude-harness-marketplace   # restart to ap
 ```
 
 **Local dir vs GitHub source.** This machine's marketplace points at the local directory (great for
-development). The GitHub repo (`RegularGuy1998/claude-harness`, private) is for installing on other
-machines — those need `gh`/git auth with access to the repo. The `harness-cli` binary is built and
-published from this same private repo's GitHub Releases, so the first-session download needs `gh` (or
-a `GH_TOKEN`/`GITHUB_TOKEN`) with access; without it the gates degrade to advisory. Override the
-source with `HARNESS_CLI_RELEASE_REPO` / `HARNESS_CLI_BASE_URL`, or point `HARNESS_CLI_BIN` at a
+development). The GitHub repo (`RegularGuy1998/claude-harness`, public) is for installing on other
+machines. The `harness-cli` binary is built and published from this repo's GitHub Releases; since the
+repo is public, the first-session download works anonymously — no auth needed. A `gh` CLI or a
+`GH_TOKEN`/`GITHUB_TOKEN` is still used automatically when present (handy for API rate limits). Override
+the source with `HARNESS_CLI_RELEASE_REPO` / `HARNESS_CLI_BASE_URL`, or point `HARNESS_CLI_BIN` at a
 local build.
 
 **Reset a project.** Delete its `.harness/` directory (it's git-ignored). The binary cache lives under

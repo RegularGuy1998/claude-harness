@@ -72,7 +72,7 @@ he_release_tag() {
   printf '%s' "$tag"
 }
 
-# GitHub repo that hosts the harness-cli release assets (private). Override with
+# GitHub repo that hosts the harness-cli release assets (public). Override with
 # HARNESS_CLI_RELEASE_REPO; the binary is built and published by this repo's CI.
 he_release_repo() { printf '%s' "${HARNESS_CLI_RELEASE_REPO:-RegularGuy1998/claude-harness}"; }
 
@@ -111,14 +111,15 @@ he_sha256_file() {
 # Binary bootstrap
 # ---------------------------------------------------------------------------
 
-# Download one release asset to a destination file. Tries the gh CLI first
-# (handles the PRIVATE release via the user's existing auth), then curl with a
-# token (CI / GH_TOKEN), then anonymous curl (mirror via HARNESS_CLI_BASE_URL).
-# Returns non-zero if every method fails.
+# Download one release asset to a destination file. The repo is public, so the
+# anonymous curl path alone is enough; gh and a token are tried first only when
+# present (e.g. to dodge API rate limits or for a private mirror/fork). Order:
+# gh CLI, then curl with a token (CI / GH_TOKEN), then anonymous curl
+# (mirror via HARNESS_CLI_BASE_URL). Returns non-zero if every method fails.
 he_download_asset() {
   local asset="$1" dest="$2"
   local tag; tag="$(he_release_tag)"
-  # 1) gh CLI — robust for private repos.
+  # 1) gh CLI — used if present (also covers private mirrors/forks).
   if command -v gh >/dev/null 2>&1 && [ -n "$tag" ] && [ "$tag" != "latest" ]; then
     if gh release download "$tag" --repo "$(he_release_repo)" --pattern "$asset" \
          --output "$dest" --clobber >/dev/null 2>&1; then
@@ -127,7 +128,7 @@ he_download_asset() {
   fi
   command -v curl >/dev/null 2>&1 || return 1
   local url; url="$(he_base_url)/$asset"
-  # 2) curl with a token (private asset; -L follows the signed redirect).
+  # 2) curl with a token if one is set (-L follows the signed redirect).
   local token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
   if [ -n "$token" ] \
      && curl -fsSL -H "Authorization: Bearer $token" "$url" -o "$dest" 2>/dev/null \
