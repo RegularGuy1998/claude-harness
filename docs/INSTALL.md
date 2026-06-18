@@ -1,5 +1,7 @@
 # Installing claude-harness
 
+**English** · [Tiếng Việt](vi/INSTALL.md) · [简体中文](zh/INSTALL.md)
+
 ## Requirements
 
 - **Claude Code v2.1+** (hooks: `permissionDecision`, Stop `decision`, `${CLAUDE_PLUGIN_DATA}`).

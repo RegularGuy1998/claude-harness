@@ -1,5 +1,7 @@
 # claude-harness
 
+**English** · [Tiếng Việt](docs/vi/README.md) · [简体中文](docs/zh/README.md)
+
 A Claude Code **plugin** that turns any repository into an agent-governed workspace with **hard gates**.
 
 It wraps the durable Rust `harness-cli` (feature intake, risk lanes, story packets + test matrix, decision records, execution traces, drift audit) and adds what a Codex-style `AGENTS.md` install cannot: a `SessionStart` hook that auto-loads the workflow, and `PreToolUse` / `Stop` hooks that **block** instead of merely advising.

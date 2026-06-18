@@ -1,5 +1,7 @@
 # Using claude-harness
 
+**English** · [Tiếng Việt](vi/USAGE.md) · [简体中文](zh/USAGE.md)
+
 A practical, end-to-end guide to driving the harness day to day. For installation
 see [INSTALL.md](INSTALL.md); for exactly how the gates block see [enforcement.md](enforcement.md).
 

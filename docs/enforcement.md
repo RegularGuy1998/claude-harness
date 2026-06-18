@@ -1,5 +1,7 @@
 # Enforcement: how the hard gates work
 
+**English** · [Tiếng Việt](vi/enforcement.md) · [简体中文](zh/enforcement.md)
+
 The point of claude-harness over a Codex-style `AGENTS.md` install is that its
 rules are **enforced by hooks**, not merely written down. Three hooks are
 registered in `hooks/hooks.json`; all run through the polyglot
