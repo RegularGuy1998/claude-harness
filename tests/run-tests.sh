@@ -4,6 +4,10 @@
 #   bash tests/run-tests.sh
 set -uo pipefail
 
+# Hermetic: an ambient orchestrator session id would leak into the CLI's
+# env fallback and corrupt the T-SESS fixtures.
+unset HARNESS_SESSION_ID
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export CLAUDE_PLUGIN_ROOT="$ROOT"
 
