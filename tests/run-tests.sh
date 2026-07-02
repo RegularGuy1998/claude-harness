@@ -203,6 +203,11 @@ case "$OUT" in
   *) no "repo-wide block expected" "$OUT";;
 esac
 
+# Updating someone else's story from another session must NOT steal ownership.
+HARNESS_SESSION_ID="thief" "$P/.harness/harness" story update --id US-A --status in_progress >/dev/null 2>&1
+OWNER="$(cli "$P" query sql "SELECT assigned_session FROM story WHERE id='US-A'" 2>/dev/null | tail -n +3 | head -n1 | tr -d ' \r')"
+[ "$OWNER" = "sess-A" ] && ok "story update does not env-steal ownership" || no "ownership stolen by env fallback" "$OWNER"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]

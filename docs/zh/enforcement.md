@@ -69,7 +69,10 @@ claude-harness 相比 Codex 风格的 `AGENTS.md` 安装方式的关键，在于
   启动，且其 story 是用 `story add --session`（或该环境变量）记录的，
   Stop 闸门就只会针对该会话尚未完成的 story 进行阻断。没有这个
   环境变量时，闸门保持原来的全仓库行为。编排器（例如
-  claude-team-harness）会为每个生成的 worktree 会话设置这个变量。
+  claude-team-harness）会为每个生成的 worktree 会话设置这个变量。只有
+  `story add` 会回退到环境变量；`story update` 只在显式传入
+  `--session` 时才会更改分配对象，因此更新另一个会话的 story
+  永远不会窃取其归属权。
 
 ## 解析说明
 

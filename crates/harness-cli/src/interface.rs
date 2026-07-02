@@ -196,7 +196,7 @@ struct StoryUpdateArgs {
     platform: Option<String>,
     #[arg(long)]
     verify: Option<String>,
-    /// Bind this story to an agent session (defaults to $HARNESS_SESSION_ID).
+    /// Reassign this story to an agent session (explicit only; env is ignored).
     #[arg(long)]
     session: Option<String>,
 }
@@ -542,7 +542,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                     e2e: parse_optional_bool("story update: --e2e", args.e2e)?,
                     platform: parse_optional_bool("story update: --platform", args.platform)?,
                     verify_command: args.verify,
-                    assigned_session: session_from_env(args.session),
+                    assigned_session: args.session,
                 })?;
                 println!("Story {} updated.", args.id);
             }

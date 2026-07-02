@@ -45,7 +45,7 @@ Biến *"verify trước khi xong"* thành một lệnh chặn.
 ## Worktree và phiên (session)
 
 - **Các worktree Git liên kết dùng chung `.harness/` của repository chính.** Các hook phân giải một worktree liên kết về root chính (`git rev-parse --git-common-dir`), session-start chỉ ghi một launcher `.harness/harness` mỏng bên trong worktree (được ẩn qua exclude riêng của worktree), và mọi cổng cùng mọi lệnh CLI đều đọc/ghi vào DUY NHẤT một `harness.db` ở root.
-- **Cổng Stop giới hạn theo phiên.** Khi một phiên được khởi động với `HARNESS_SESSION_ID=<id>` và các story của phiên đó được ghi bằng `story add --session` (hoặc bằng biến môi trường), cổng Stop chỉ chặn trên các story chưa xong của đúng phiên đó. Không có biến môi trường thì cổng vẫn giữ nguyên hành vi toàn repo như trước. Các orchestrator (ví dụ claude-team-harness) đặt biến này cho mỗi phiên worktree mà nó sinh ra.
+- **Cổng Stop giới hạn theo phiên.** Khi một phiên được khởi động với `HARNESS_SESSION_ID=<id>` và các story của phiên đó được ghi bằng `story add --session` (hoặc bằng biến môi trường), cổng Stop chỉ chặn trên các story chưa xong của đúng phiên đó. Không có biến môi trường thì cổng vẫn giữ nguyên hành vi toàn repo như trước. Các orchestrator (ví dụ claude-team-harness) đặt biến này cho mỗi phiên worktree mà nó sinh ra. Chỉ `story add` mới dùng biến môi trường làm phương án dự phòng; `story update` chỉ đổi phiên phụ trách khi có `--session` tường minh, nên việc cập nhật story của phiên khác không bao giờ chiếm quyền sở hữu của nó.
 
 ## Ghi chú về phân tích cú pháp (parsing)
 

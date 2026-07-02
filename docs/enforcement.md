@@ -70,7 +70,9 @@ Turns *"verify before done"* into a block.
   --session` (or the env var), the Stop gate blocks only on that session's
   unmet stories. Without the env var the gate keeps its original repo-wide
   behavior. Orchestrators (e.g. claude-team-harness) set the variable per
-  spawned worktree session.
+  spawned worktree session. Only `story add` falls back to the env var;
+  `story update` changes assignment solely via an explicit `--session`, so
+  updating another session's story never steals it.
 
 ## Parsing note
 
