@@ -173,6 +173,9 @@ struct StoryAddArgs {
     verify: Option<String>,
     #[arg(long)]
     notes: Option<String>,
+    /// Bind this story to an agent session (defaults to $HARNESS_SESSION_ID).
+    #[arg(long)]
+    session: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -193,6 +196,9 @@ struct StoryUpdateArgs {
     platform: Option<String>,
     #[arg(long)]
     verify: Option<String>,
+    /// Bind this story to an agent session (defaults to $HARNESS_SESSION_ID).
+    #[arg(long)]
+    session: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -510,6 +516,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                     contract_doc: args.contract,
                     verify_command: args.verify,
                     notes: args.notes,
+                    assigned_session: session_from_env(args.session),
                 })?;
                 println!("Story {} added.", args.id);
             }
@@ -526,6 +533,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                     e2e: parse_optional_bool("story update: --e2e", args.e2e)?,
                     platform: parse_optional_bool("story update: --platform", args.platform)?,
                     verify_command: args.verify,
+                    assigned_session: session_from_env(args.session),
                 })?;
                 println!("Story {} updated.", args.id);
             }
@@ -978,6 +986,14 @@ fn parse_optional_bool(
         .map(|inner| BoolFlag::parse(label, &inner))
         .transpose()
         .map_err(InterfaceError::from)
+}
+
+fn session_from_env(explicit: Option<String>) -> Option<String> {
+    explicit.or_else(|| {
+        std::env::var("HARNESS_SESSION_ID")
+            .ok()
+            .filter(|value| !value.is_empty())
+    })
 }
 
 fn print_init_result(result: InitResult) {
@@ -1485,5 +1501,19 @@ mod tests {
             .render_long_help()
             .to_string();
         assert!(matrix_help.contains("--numeric"));
+    }
+
+    #[test]
+    fn session_from_env_prefers_explicit_flag() {
+        std::env::set_var("HARNESS_SESSION_ID", "from-env");
+        assert_eq!(
+            session_from_env(Some("explicit".to_owned())).as_deref(),
+            Some("explicit")
+        );
+        assert_eq!(session_from_env(None).as_deref(), Some("from-env"));
+        std::env::set_var("HARNESS_SESSION_ID", "");
+        assert_eq!(session_from_env(None), None);
+        std::env::remove_var("HARNESS_SESSION_ID");
+        assert_eq!(session_from_env(None), None);
     }
 }

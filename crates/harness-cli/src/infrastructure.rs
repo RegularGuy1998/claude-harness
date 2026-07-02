@@ -136,12 +136,16 @@ impl SqliteHarnessRepository {
 
         let connection = Connection::open(&self.db_path)?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
+        connection.pragma_update(None, "journal_mode", "WAL")?;
+        connection.busy_timeout(std::time::Duration::from_millis(5000))?;
         Ok(connection)
     }
 
     fn open_or_create(&self) -> Result<Connection> {
         let connection = Connection::open(&self.db_path)?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
+        connection.pragma_update(None, "journal_mode", "WAL")?;
+        connection.busy_timeout(std::time::Duration::from_millis(5000))?;
         Ok(connection)
     }
 
@@ -504,8 +508,8 @@ impl HarnessRepository for SqliteHarnessRepository {
     fn add_story(&self, input: StoryAddInput) -> Result<()> {
         let connection = self.open_existing()?;
         connection.execute(
-            "INSERT INTO story (id, title, risk_lane, contract_doc, verify_command, notes)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6);",
+            "INSERT INTO story (id, title, risk_lane, contract_doc, verify_command, notes, assigned_session)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);",
             params![
                 input.id,
                 input.title,
@@ -513,6 +517,7 @@ impl HarnessRepository for SqliteHarnessRepository {
                 input.contract_doc,
                 input.verify_command,
                 input.notes,
+                input.assigned_session,
             ],
         )?;
         Ok(())
@@ -526,6 +531,7 @@ impl HarnessRepository for SqliteHarnessRepository {
             && input.e2e.is_none()
             && input.platform.is_none()
             && input.verify_command.is_none()
+            && input.assigned_session.is_none()
         {
             return Err(HarnessInfraError::EmptyStoryUpdate);
         }
@@ -539,8 +545,9 @@ impl HarnessRepository for SqliteHarnessRepository {
                 integration_proof=COALESCE(?4, integration_proof),
                 e2e_proof=COALESCE(?5, e2e_proof),
                 platform_proof=COALESCE(?6, platform_proof),
-                verify_command=COALESCE(?7, verify_command)
-             WHERE id=?8;",
+                verify_command=COALESCE(?7, verify_command),
+                assigned_session=COALESCE(?8, assigned_session)
+             WHERE id=?9;",
             params![
                 input.status,
                 input.evidence,
@@ -549,6 +556,7 @@ impl HarnessRepository for SqliteHarnessRepository {
                 input.e2e.map(|value| value.0),
                 input.platform.map(|value| value.0),
                 input.verify_command,
+                input.assigned_session,
                 input.id,
             ],
         )?;
@@ -2002,7 +2010,7 @@ mod tests {
         assert_eq!(repository.query_stats().unwrap().intakes, 0);
         let connection = repository.open_existing().unwrap();
         let schema_version = SqliteHarnessRepository::schema_version(&connection).unwrap();
-        assert_eq!(schema_version, 6);
+        assert_eq!(schema_version, 7);
         let story_columns = story_columns(&connection);
         assert!(story_columns.contains(&"verify_command".to_owned()));
         assert!(story_columns.contains(&"last_verified_at".to_owned()));
@@ -2019,11 +2027,11 @@ mod tests {
         let result = repository.migrate().unwrap();
 
         assert_eq!(result.current_version, 1);
-        assert_eq!(result.applied, vec![2, 3, 4, 5, 6]);
+        assert_eq!(result.applied, vec![2, 3, 4, 5, 6, 7]);
         let connection = repository.open_existing().unwrap();
         assert_eq!(
             SqliteHarnessRepository::schema_version(&connection).unwrap(),
-            6
+            7
         );
         let story_columns = story_columns(&connection);
         assert!(story_columns.contains(&"verify_command".to_owned()));
@@ -2123,7 +2131,7 @@ mod tests {
         drop(connection);
 
         // Upgrade: migration 005 must infer kind from the command prefix.
-        assert_eq!(repository.migrate().unwrap().applied, vec![5, 6]);
+        assert_eq!(repository.migrate().unwrap().applied, vec![5, 6, 7]);
         let connection = repository.open_existing().unwrap();
         let kind_of = |name: &str| -> String {
             connection
@@ -2231,6 +2239,7 @@ mod tests {
                 contract_doc: None,
                 verify_command: Some("echo ok".to_owned()),
                 notes: None,
+                assigned_session: None,
             })
             .unwrap();
         assert_eq!(
@@ -2252,6 +2261,7 @@ mod tests {
                 e2e: None,
                 platform: None,
                 verify_command: Some("npm test".to_owned()),
+                assigned_session: None,
             })
             .unwrap();
 
@@ -2263,6 +2273,69 @@ mod tests {
                 .as_deref(),
             Some("npm test")
         );
+    }
+
+    #[test]
+    fn story_add_and_update_persist_assigned_session() {
+        let (_temp_dir, repository) = test_repository();
+        repository.init().unwrap();
+        repository
+            .add_story(StoryAddInput {
+                id: "US-900".to_owned(),
+                title: "session bound".to_owned(),
+                risk_lane: RiskLane::Normal,
+                contract_doc: None,
+                verify_command: None,
+                notes: None,
+                assigned_session: Some("th-us-900-abcd1234".to_owned()),
+            })
+            .unwrap();
+        let connection = repository.open_existing().unwrap();
+        let session: Option<String> = connection
+            .query_row(
+                "SELECT assigned_session FROM story WHERE id='US-900';",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(session.as_deref(), Some("th-us-900-abcd1234"));
+
+        repository
+            .update_story(StoryUpdateInput {
+                id: "US-900".to_owned(),
+                status: None,
+                evidence: None,
+                unit: None,
+                integration: None,
+                e2e: None,
+                platform: None,
+                verify_command: None,
+                assigned_session: Some("th-other-00000000".to_owned()),
+            })
+            .unwrap();
+        let session: Option<String> = connection
+            .query_row(
+                "SELECT assigned_session FROM story WHERE id='US-900';",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(session.as_deref(), Some("th-other-00000000"));
+    }
+
+    #[test]
+    fn connections_use_wal_and_busy_timeout() {
+        let (_temp_dir, repository) = test_repository();
+        repository.init().unwrap();
+        let connection = repository.open_existing().unwrap();
+        let mode: String = connection
+            .query_row("PRAGMA journal_mode;", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(mode.to_lowercase(), "wal");
+        let timeout: i64 = connection
+            .query_row("PRAGMA busy_timeout;", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(timeout, 5000);
     }
 
     #[test]
@@ -2297,6 +2370,7 @@ mod tests {
                 contract_doc: None,
                 verify_command: Some(verify_command),
                 notes: None,
+                assigned_session: None,
             })
             .unwrap();
         let pass = repository.verify_story("US-PASS").unwrap();
@@ -2322,6 +2396,7 @@ mod tests {
                 contract_doc: None,
                 verify_command: Some("exit 1".to_owned()),
                 notes: None,
+                assigned_session: None,
             })
             .unwrap();
         let fail = repository.verify_story("US-FAIL").unwrap();
@@ -2343,6 +2418,7 @@ mod tests {
                 contract_doc: None,
                 verify_command: None,
                 notes: None,
+                assigned_session: None,
             })
             .unwrap();
         assert!(matches!(
@@ -2368,6 +2444,7 @@ mod tests {
                     contract_doc: None,
                     verify_command: command.map(str::to_owned),
                     notes: None,
+                    assigned_session: None,
                 })
                 .unwrap();
         }
@@ -2527,6 +2604,7 @@ mod tests {
                 contract_doc: None,
                 verify_command: None,
                 notes: None,
+                assigned_session: None,
             })
             .unwrap();
         let trace_id = repository
@@ -2594,6 +2672,7 @@ mod tests {
                 contract_doc: None,
                 verify_command: Some("exit 0".to_owned()),
                 notes: None,
+                assigned_session: None,
             })
             .unwrap();
         repository
@@ -2606,6 +2685,7 @@ mod tests {
                 e2e: None,
                 platform: None,
                 verify_command: None,
+                assigned_session: None,
             })
             .unwrap();
         repository
@@ -2692,6 +2772,7 @@ mod tests {
                 contract_doc: None,
                 verify_command: None,
                 notes: None,
+                assigned_session: None,
             })
             .unwrap();
         repository
@@ -2704,6 +2785,7 @@ mod tests {
                 e2e: None,
                 platform: None,
                 verify_command: None,
+                assigned_session: None,
             })
             .unwrap();
         assert_eq!(repository.query_matrix().unwrap()[0].unit, 1);

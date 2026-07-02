@@ -34,6 +34,7 @@ pub struct StoryAddInput {
     pub contract_doc: Option<String>,
     pub verify_command: Option<String>,
     pub notes: Option<String>,
+    pub assigned_session: Option<String>,
 }
 
 #[derive(Debug)]
@@ -46,6 +47,7 @@ pub struct StoryUpdateInput {
     pub e2e: Option<BoolFlag>,
     pub platform: Option<BoolFlag>,
     pub verify_command: Option<String>,
+    pub assigned_session: Option<String>,
 }
 
 #[derive(Debug)]
