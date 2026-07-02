@@ -8,8 +8,8 @@ use thiserror::Error;
 use crate::application::{
     BacklogAddInput, BacklogCloseInput, BrownfieldImportResult, ContextCaptureInput,
     DecisionAddInput, HarnessContext, HarnessService, InitResult, IntakeInput,
-    InterventionAddInput, InterventionFilter, MigrateResult, QueryTable, StoryAddInput,
-    StoryUpdateInput, ToolRegisterInput, TraceInput,
+    InterventionAddInput, InterventionFilter, MatrixFilter, MigrateResult, QueryTable,
+    StoryAddInput, StoryUpdateInput, ToolRegisterInput, TraceInput,
 };
 use crate::domain::{
     normalize_capability, parse_optional_integer, parse_tool_args, proof_display,
@@ -406,6 +406,15 @@ struct MatrixQueryArgs {
     /// Render proof flags as CLI input values, 1 and 0, instead of yes and no.
     #[arg(long)]
     numeric: bool,
+    /// Only stories with status planned or in_progress.
+    #[arg(long)]
+    open: bool,
+    /// Only the story with this id.
+    #[arg(long)]
+    story: Option<String>,
+    /// Print at most N rows.
+    #[arg(long, value_name = "N")]
+    limit: Option<u32>,
 }
 
 #[derive(Args, Debug)]
@@ -709,7 +718,14 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
         Command::Audit => print_audit(&service.audit()?),
         Command::Propose(args) => print_proposals(&service.propose(args.commit)?),
         Command::Query(args) => match args.view {
-            QueryView::Matrix(args) => print_matrix(&service.query_matrix()?, args.numeric),
+            QueryView::Matrix(args) => print_matrix(
+                &service.query_matrix(&MatrixFilter {
+                    open: args.open,
+                    story: args.story.clone(),
+                    limit: args.limit,
+                })?,
+                args.numeric,
+            ),
             QueryView::Backlog(args) => {
                 print_backlog(&service.query_backlog(backlog_filter(&args))?)
             }
@@ -1501,6 +1517,9 @@ mod tests {
             .render_long_help()
             .to_string();
         assert!(matrix_help.contains("--numeric"));
+        assert!(matrix_help.contains("--open"));
+        assert!(matrix_help.contains("--story"));
+        assert!(matrix_help.contains("--limit"));
     }
 
     #[test]

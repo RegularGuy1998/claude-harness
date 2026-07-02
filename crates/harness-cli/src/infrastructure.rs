@@ -10,8 +10,8 @@ use thiserror::Error;
 use crate::application::{
     BacklogAddInput, BacklogCloseInput, BrownfieldImportResult, ContextCaptureInput,
     DecisionAddInput, DecisionVerifyResult, HarnessContext, InitResult, IntakeInput,
-    InterventionAddInput, InterventionFilter, MigrateResult, QueryTable, StoryAddInput,
-    StoryUpdateInput, StoryVerifyResult, ToolRegisterInput, TraceInput,
+    InterventionAddInput, InterventionFilter, MatrixFilter, MigrateResult, QueryTable,
+    StoryAddInput, StoryUpdateInput, StoryVerifyResult, ToolRegisterInput, TraceInput,
 };
 use crate::domain::{
     compiled_tool_registry, normalize_token, score_context, score_trace, validate_tool_description,
@@ -93,7 +93,7 @@ pub trait HarnessRepository {
     fn score_trace(&self, id: Option<i64>) -> Result<TraceScoreResult>;
     fn score_context(&self, id: i64) -> Result<ContextScoreResult>;
     fn story_verify_status(&self, id: &str) -> Result<StoryVerifyStatus>;
-    fn query_matrix(&self) -> Result<Vec<StoryMatrixRecord>>;
+    fn query_matrix(&self, filter: &MatrixFilter) -> Result<Vec<StoryMatrixRecord>>;
     fn query_backlog(&self, filter: BacklogFilter) -> Result<Vec<BacklogRecord>>;
     fn query_decisions(&self) -> Result<Vec<DecisionRecord>>;
     fn query_intakes(&self) -> Result<Vec<IntakeRecord>>;
@@ -996,25 +996,46 @@ impl HarnessRepository for SqliteHarnessRepository {
             .ok_or_else(|| HarnessInfraError::StoryNotFound(id.to_owned()))
     }
 
-    fn query_matrix(&self) -> Result<Vec<StoryMatrixRecord>> {
+    fn query_matrix(&self, filter: &MatrixFilter) -> Result<Vec<StoryMatrixRecord>> {
         let connection = self.open_existing()?;
-        let mut statement = connection.prepare(
+        let mut clauses: Vec<&str> = Vec::new();
+        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        if filter.open {
+            clauses.push("status IN ('planned','in_progress')");
+        }
+        if let Some(story) = &filter.story {
+            clauses.push("id = ?");
+            params_vec.push(Box::new(story.clone()));
+        }
+        let where_clause = if clauses.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", clauses.join(" AND "))
+        };
+        let limit_clause = match filter.limit {
+            Some(limit) => format!("LIMIT {limit}"),
+            None => String::new(),
+        };
+        let sql = format!(
             "SELECT id, title, status, unit_proof, integration_proof, e2e_proof, platform_proof, evidence
-             FROM story ORDER BY id;",
+             FROM story {where_clause} ORDER BY id {limit_clause};"
+        );
+        let mut statement = connection.prepare(&sql)?;
+        let rows = statement.query_map(
+            rusqlite::params_from_iter(params_vec.iter().map(|p| p.as_ref())),
+            |row| {
+                Ok(StoryMatrixRecord {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    status: row.get(2)?,
+                    unit: row.get(3)?,
+                    integration: row.get(4)?,
+                    e2e: row.get(5)?,
+                    platform: row.get(6)?,
+                    evidence: row.get(7)?,
+                })
+            },
         )?;
-
-        let rows = statement.query_map([], |row| {
-            Ok(StoryMatrixRecord {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                status: row.get(2)?,
-                unit: row.get(3)?,
-                integration: row.get(4)?,
-                e2e: row.get(5)?,
-                platform: row.get(6)?,
-                evidence: row.get(7)?,
-            })
-        })?;
 
         collect_rows(rows)
     }
@@ -2760,6 +2781,72 @@ mod tests {
     }
 
     #[test]
+    fn query_matrix_filters_open_story_and_limit() {
+        let (_temp_dir, repository) = test_repository();
+        repository.init().unwrap();
+        for (id, status) in [
+            ("US-1", "in_progress"),
+            ("US-2", "implemented"),
+            ("US-3", "planned"),
+        ] {
+            repository
+                .add_story(StoryAddInput {
+                    id: id.to_owned(),
+                    title: format!("story {id}"),
+                    risk_lane: RiskLane::Normal,
+                    contract_doc: None,
+                    verify_command: None,
+                    notes: None,
+                    assigned_session: None,
+                })
+                .unwrap();
+            repository
+                .update_story(StoryUpdateInput {
+                    id: id.to_owned(),
+                    status: Some(status.to_owned()),
+                    evidence: None,
+                    unit: None,
+                    integration: None,
+                    e2e: None,
+                    platform: None,
+                    verify_command: None,
+                    assigned_session: None,
+                })
+                .unwrap();
+        }
+        let all = repository.query_matrix(&MatrixFilter::default()).unwrap();
+        assert_eq!(all.len(), 3);
+
+        let open = repository
+            .query_matrix(&MatrixFilter {
+                open: true,
+                ..MatrixFilter::default()
+            })
+            .unwrap();
+        assert_eq!(
+            open.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+            vec!["US-1", "US-3"]
+        );
+
+        let one = repository
+            .query_matrix(&MatrixFilter {
+                story: Some("US-2".to_owned()),
+                ..MatrixFilter::default()
+            })
+            .unwrap();
+        assert_eq!(one.len(), 1);
+        assert_eq!(one[0].id, "US-2");
+
+        let limited = repository
+            .query_matrix(&MatrixFilter {
+                limit: Some(2),
+                ..MatrixFilter::default()
+            })
+            .unwrap();
+        assert_eq!(limited.len(), 2);
+    }
+
+    #[test]
     fn story_backlog_trace_and_queries_work() {
         let (_temp_dir, repository) = test_repository();
         repository.init().unwrap();
@@ -2788,7 +2875,10 @@ mod tests {
                 assigned_session: None,
             })
             .unwrap();
-        assert_eq!(repository.query_matrix().unwrap()[0].unit, 1);
+        assert_eq!(
+            repository.query_matrix(&MatrixFilter::default()).unwrap()[0].unit,
+            1
+        );
 
         let backlog_id = repository
             .add_backlog(BacklogAddInput {
@@ -3030,7 +3120,7 @@ implemented
         );
         assert_eq!(second.backlog_items, 2);
 
-        let matrix = repository.query_matrix().unwrap();
+        let matrix = repository.query_matrix(&MatrixFilter::default()).unwrap();
         assert_eq!(matrix[0].id, "US-010");
         assert_eq!(matrix[0].title, "docs/product/tasks.md");
         assert_eq!(matrix[0].status, "implemented");

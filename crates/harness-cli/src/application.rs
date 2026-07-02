@@ -96,6 +96,13 @@ pub struct InterventionAddInput {
 }
 
 #[derive(Debug, Default)]
+pub struct MatrixFilter {
+    pub open: bool,
+    pub story: Option<String>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Default)]
 pub struct InterventionFilter {
     pub trace_id: Option<i64>,
     pub story_id: Option<String>,
@@ -247,8 +254,11 @@ impl HarnessService {
         self.repository.story_verify_status(id)
     }
 
-    pub fn query_matrix(&self) -> crate::infrastructure::Result<Vec<StoryMatrixRecord>> {
-        self.repository.query_matrix()
+    pub fn query_matrix(
+        &self,
+        filter: &MatrixFilter,
+    ) -> crate::infrastructure::Result<Vec<StoryMatrixRecord>> {
+        self.repository.query_matrix(filter)
     }
 
     pub fn query_backlog(
