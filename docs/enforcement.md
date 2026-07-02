@@ -58,6 +58,20 @@ Turns *"verify before done"* into a block.
 - The only way past is to make `story verify` actually pass — recorded through
   the CLI, not talked around.
 
+## Worktrees and sessions
+
+- **Linked git worktrees share the main repository's `.harness/`.** The hooks
+  resolve a linked worktree to the main root (`git rev-parse
+  --git-common-dir`), session-start writes only a thin `.harness/harness`
+  launcher inside the worktree (hidden via the worktree's private exclude),
+  and every gate and CLI call reads and writes the ONE root `harness.db`.
+- **Stop gate scopes per session.** When a session is started with
+  `HARNESS_SESSION_ID=<id>` and its stories are recorded with `story add
+  --session` (or the env var), the Stop gate blocks only on that session's
+  unmet stories. Without the env var the gate keeps its original repo-wide
+  behavior. Orchestrators (e.g. claude-team-harness) set the variable per
+  spawned worktree session.
+
 ## Parsing note
 
 Only `tool check` and `query tools` emit JSON; the gates therefore rely on exit

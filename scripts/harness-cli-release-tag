@@ -5,4 +5,4 @@
 # HARNESS_CLI_RELEASE_TAG, HARNESS_CLI_BASE_URL (mirror / offline copy), or
 # HARNESS_CLI_RELEASE_REPO (a different host repo).
 # The first non-comment token on a line is used.
-harness-cli-v0.1.12
+harness-cli-v0.1.13

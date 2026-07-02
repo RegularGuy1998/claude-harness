@@ -11,7 +11,7 @@ The app is what users touch. The harness is what the agent touches.
 ## What it gives an agent
 
 - **Intake before edits** — every change is classified (input type + risk lane) before any code is touched. A `PreToolUse` hook blocks the first edit in an initialized project that has no intake.
-- **One active feature** — normal/high-risk work becomes a story with a test matrix.
+- **One active feature per session** — normal/high-risk work becomes a story with a test matrix; parallel worktree sessions each own theirs.
 - **Verification before "done"** — a `Stop` hook blocks ending the turn while an in-progress story's verification command has not passed.
 - **Traces with friction** — every task records what happened and where the harness got in the way, feeding `audit` and `propose`.
 

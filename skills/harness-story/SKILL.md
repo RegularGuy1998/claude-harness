@@ -20,7 +20,7 @@ Produce, in this order:
      --verify "npm test -- rate-limit" [--contract docs/product/auth.md]
    ```
 
-2. **One active feature only.** Mark it in progress when you start:
+2. **One active feature per session.** Mark it in progress when you start:
 
    ```bash
    .harness/harness story update --id US-001 --status in_progress

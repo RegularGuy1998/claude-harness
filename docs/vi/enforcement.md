@@ -42,6 +42,11 @@ Biến *"verify trước khi xong"* thành một lệnh chặn.
 - **An toàn với vòng lặp:** khi hook đã chặn một lần, Claude Code đặt `stop_hook_active: true` ở lần Stop kế tiếp; lúc đó hook cho qua, nên con người không bao giờ bị kẹt. (Claude Code cũng giới hạn số lần chặn liên tiếp ở 8 theo mặc định, ghi đè qua `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`.)
 - Cách duy nhất để qua là làm cho `story verify` thực sự pass — được ghi nhận qua CLI, không phải nói vòng cho xong.
 
+## Worktree và phiên (session)
+
+- **Các worktree Git liên kết dùng chung `.harness/` của repository chính.** Các hook phân giải một worktree liên kết về root chính (`git rev-parse --git-common-dir`), session-start chỉ ghi một launcher `.harness/harness` mỏng bên trong worktree (được ẩn qua exclude riêng của worktree), và mọi cổng cùng mọi lệnh CLI đều đọc/ghi vào DUY NHẤT một `harness.db` ở root.
+- **Cổng Stop giới hạn theo phiên.** Khi một phiên được khởi động với `HARNESS_SESSION_ID=<id>` và các story của phiên đó được ghi bằng `story add --session` (hoặc bằng biến môi trường), cổng Stop chỉ chặn trên các story chưa xong của đúng phiên đó. Không có biến môi trường thì cổng vẫn giữ nguyên hành vi toàn repo như trước. Các orchestrator (ví dụ claude-team-harness) đặt biến này cho mỗi phiên worktree mà nó sinh ra.
+
 ## Ghi chú về phân tích cú pháp (parsing)
 
 Chỉ `tool check` và `query tools` xuất JSON; do đó các cổng dựa vào mã thoát (exit code) và `query sql`. `query sql` luôn in một dòng tiêu đề và một dòng gạch ngang phân cách trước mọi dòng dữ liệu, nên các cổng bỏ qua hai dòng đầu (`tail -n +3`) khi đếm dòng. Xem `hooks/lib/harness-env` (`he_sql_rows` / `he_sql_count`).

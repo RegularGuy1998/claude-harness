@@ -58,6 +58,19 @@ claude-harness 相比 Codex 风格的 `AGENTS.md` 安装方式的关键，在于
 - 唯一越过它的办法是让 `story verify` 真正通过 —— 通过
   CLI 记录，而不是绕过去说。
 
+## Worktree 与会话
+
+- **关联的 git worktree 共享主仓库的 `.harness/`。** 钩子会把一个关联
+  worktree 解析回主根目录（`git rev-parse --git-common-dir`），
+  session-start 只在 worktree 内部写入一个很薄的 `.harness/harness`
+  启动器（通过该 worktree 私有的 exclude 隐藏），而每一道闸门和每一次
+  CLI 调用都读写同一个根目录下的 `harness.db`。
+- **Stop 闸门按会话限定范围。** 当一个会话以 `HARNESS_SESSION_ID=<id>`
+  启动，且其 story 是用 `story add --session`（或该环境变量）记录的，
+  Stop 闸门就只会针对该会话尚未完成的 story 进行阻断。没有这个
+  环境变量时，闸门保持原来的全仓库行为。编排器（例如
+  claude-team-harness）会为每个生成的 worktree 会话设置这个变量。
+
 ## 解析说明
 
 只有 `tool check` 和 `query tools` 会输出 JSON；因此各闸门依赖退出

@@ -24,7 +24,7 @@ If `docs/context/PROJECT_CONTEXT.md` exists, **read it** — it is the project's
 ## The Loop (every task)
 
 1. **Classify before editing.** Before changing ANY code, record an intake → invoke `claude-harness:harness-intake`. This assigns a **risk lane** (tiny / normal / high-risk). A `PreToolUse` hook hard-blocks edits in an initialized project that has no intake.
-2. **One active feature.** Normal/high-risk work becomes a story → `claude-harness:harness-story`. Do not start a second feature before the current one passes.
+2. **One active feature per session.** Normal/high-risk work becomes a story → `claude-harness:harness-story`. Do not start a second feature in the same session before the current one passes. Parallel sessions (e.g. one per git worktree) each carry their own active feature, bound via `HARNESS_SESSION_ID`.
 3. **Verify before claiming done.** Before saying "done/fixed/passing", invoke `claude-harness:harness-verification-before-completion`. A `Stop` hook hard-blocks ending the turn while an in-progress story's verification has not passed.
 4. **Trace at the end.** Before your final response, record a trace with friction → `claude-harness:harness-trace-and-friction`.
 5. **Harness health.** When friction repeats, invoke `claude-harness:harness-audit-and-propose`.
