@@ -24,6 +24,11 @@ he_have_db || allow
 he_have_binary || allow
 
 q="SELECT id FROM story WHERE status='in_progress' AND verify_command IS NOT NULL AND (last_verified_result IS NULL OR last_verified_result<>'pass')"
+if [ -n "${HARNESS_SESSION_ID:-}" ]; then
+  # Scope to this session's stories. Single quotes doubled for SQL safety.
+  _sid="$(printf '%s' "$HARNESS_SESSION_ID" | sed "s/'/''/g")"
+  q="$q AND assigned_session='$_sid'"
+fi
 rows="$(he_cli query sql "$q" 2>/dev/null)"; rc=$?
 [ "$rc" -eq 0 ] || allow
 

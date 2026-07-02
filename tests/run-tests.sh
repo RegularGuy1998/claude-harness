@@ -168,6 +168,37 @@ CLAUDE_PROJECT_DIR="$P" CLAUDE_PLUGIN_DATA="$(mktemp -d)" HARNESS_CLI_BIN="$FIX_
 grep -q "HARNESS_DB=\"$P/.harness/harness.db\"" "$P/.harness/harness" \
   && ok "main checkout launcher unchanged" || no "main checkout launcher rewritten" "$(cat "$P/.harness/harness")"
 
+echo "== T-SESS: stop gate scopes to HARNESS_SESSION_ID =="
+P="$(new_project)"
+cli "$P" init >/dev/null 2>&1
+cli "$P" intake --type change_request --summary "t" --lane normal >/dev/null 2>&1
+cli "$P" story add --id US-A --title "a" --lane normal --verify "exit 1" --session sess-A >/dev/null 2>&1
+cli "$P" story update --id US-A --status in_progress >/dev/null 2>&1
+cli "$P" story add --id US-B --title "b" --lane normal --verify "exit 1" --session sess-B >/dev/null 2>&1
+cli "$P" story update --id US-B --status in_progress >/dev/null 2>&1
+
+# Session A is blocked by its own story only.
+OUT="$(CLAUDE_PROJECT_DIR="$P" HARNESS_CLI_BIN="$FIX_BIN" HARNESS_SESSION_ID="sess-A" \
+  bash "$ROOT/hooks/stop-verify-gate" <<<'{}' 2>/dev/null)"
+case "$OUT" in
+  *'"decision": "block"'*US-A*) ok "session A blocked on US-A";;
+  *) no "session A should block on US-A" "$OUT";;
+esac
+case "$OUT" in *US-B*) no "session A must not see US-B" "$OUT";; *) ok "US-B not visible to session A";; esac
+
+# A session with no assigned stories is free to stop.
+OUT="$(CLAUDE_PROJECT_DIR="$P" HARNESS_CLI_BIN="$FIX_BIN" HARNESS_SESSION_ID="sess-C" \
+  bash "$ROOT/hooks/stop-verify-gate" <<<'{}' 2>/dev/null)"; RC=$?
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "unrelated session allowed" || no "unrelated session should be allowed" "$OUT"
+
+# Without the env var: repo-wide behavior (blocks, mentions both stories).
+OUT="$(CLAUDE_PROJECT_DIR="$P" HARNESS_CLI_BIN="$FIX_BIN" \
+  bash "$ROOT/hooks/stop-verify-gate" <<<'{}' 2>/dev/null)"
+case "$OUT" in
+  *'"decision": "block"'*US-A*US-B*) ok "no session id -> repo-wide block";;
+  *) no "repo-wide block expected" "$OUT";;
+esac
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
