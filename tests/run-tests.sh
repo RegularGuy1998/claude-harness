@@ -127,6 +127,47 @@ if command -v sha256sum >/dev/null 2>&1; then SHA_FILE="$(sha256sum "$P/docs/con
 else SHA_FILE="$(shasum -a 256 "$P/docs/context/PROJECT_CONTEXT.md" | awk '{print $1}')"; fi
 { [ -n "$SHA_STORED" ] && [ "$SHA_STORED" = "$SHA_FILE" ]; } && ok "context capture auto-hashes the file" || no "auto-hash mismatch" "$SHA_STORED vs $SHA_FILE"
 
+echo "== T-WT: linked worktree resolves to the main root =="
+P="$(new_project)"
+git -C "$P" init -b main >/dev/null 2>&1
+git -C "$P" -c user.email=t@e -c user.name=t commit --allow-empty -m init >/dev/null 2>&1
+git -C "$P" worktree add "$P/.worktrees/wt1" -b task/wt1 >/dev/null 2>&1
+WT="$P/.worktrees/wt1"
+
+# session-start inside the worktree must NOT create a fresh DB workspace there;
+# it must write a thin launcher pointing at the root.
+CLAUDE_PROJECT_DIR="$WT" CLAUDE_PLUGIN_DATA="$(mktemp -d)" HARNESS_CLI_BIN="$FIX_BIN" \
+  bash "$ROOT/hooks/run-hook.cmd" session-start >/dev/null 2>&1
+[ -x "$WT/.harness/harness" ] && ok "worktree launcher created" || no "worktree launcher missing"
+[ ! -d "$WT/.harness/scripts" ] && ok "no schema staged in worktree" || no "worktree got its own schema copy"
+# Path-form note: the promoted root comes from `git rev-parse --path-format=absolute`,
+# which on Git for Windows prints C:/-style paths, while mktemp gives /tmp-style.
+# Normalize with cygpath before string-comparing (files themselves are identical).
+PW="$(cygpath -m "$P" 2>/dev/null || printf '%s' "$P")"
+grep -q "HARNESS_DB=\"$PW/.harness/harness.db\"" "$WT/.harness/harness" \
+  && ok "worktree launcher points at root DB" || no "launcher DB path wrong" "$(cat "$WT/.harness/harness")"
+
+# CLI runs from the worktree must write into the ROOT database.
+cli "$WT" init >/dev/null 2>&1
+[ -f "$P/.harness/harness.db" ] && ok "init from worktree created ROOT db" || no "root db missing"
+[ ! -f "$WT/.harness/harness.db" ] && ok "no db inside worktree" || no "worktree db should not exist"
+
+# Gates run inside the worktree must see the root DB (deny: 0 intakes).
+run_gate pretool-intake-gate "$WT" '{"tool_name":"Edit","tool_input":{"file_path":"src/x.ts"}}'
+case "$OUT" in *'"permissionDecision": "deny"'*) ok "intake gate reads root db from worktree";; *) no "gate did not use root db" "$OUT";; esac
+
+# git status in the worktree stays clean (launcher hidden by private exclude).
+ST="$(git -C "$WT" status --porcelain)"
+[ -z "$ST" ] && ok "worktree status clean" || no "worktree dirtied" "$ST"
+
+# Main checkout: promotion must be a NO-OP — session-start there keeps the
+# root launcher pointing at the root itself (path in CLAUDE_PROJECT_DIR form,
+# since no --path-format promotion happens on the main checkout).
+CLAUDE_PROJECT_DIR="$P" CLAUDE_PLUGIN_DATA="$(mktemp -d)" HARNESS_CLI_BIN="$FIX_BIN" \
+  bash "$ROOT/hooks/run-hook.cmd" session-start >/dev/null 2>&1
+grep -q "HARNESS_DB=\"$P/.harness/harness.db\"" "$P/.harness/harness" \
+  && ok "main checkout launcher unchanged" || no "main checkout launcher rewritten" "$(cat "$P/.harness/harness")"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
