@@ -13,6 +13,38 @@ pub enum ParseHarnessValueError {
     Integer(String),
     #[error("{0} must be 0 or 1. Example: --unit 1 --integration 1 --e2e 0 --platform 0")]
     BoolFlag(String),
+    #[error("unknown story status '{0}'. Use: planned, in_progress, implemented, changed, or retired")]
+    StoryStatus(String),
+    #[error("unknown trace outcome '{0}'. Use: completed, blocked, partial, or failed")]
+    TraceOutcome(String),
+}
+
+/// Values the `story.status` CHECK constraint accepts. Parsing here — rather than
+/// letting SQLite reject the write — is what turns a raw
+/// "CHECK constraint failed: status IN (...)" dump into an error that names the
+/// flag and its options.
+pub fn parse_story_status(value: &str) -> Result<String, ParseHarnessValueError> {
+    match normalize_token(value).as_str() {
+        "planned" => Ok("planned".to_owned()),
+        "in_progress" => Ok("in_progress".to_owned()),
+        "implemented" => Ok("implemented".to_owned()),
+        "changed" => Ok("changed".to_owned()),
+        "retired" => Ok("retired".to_owned()),
+        _ => Err(ParseHarnessValueError::StoryStatus(value.to_owned())),
+    }
+}
+
+/// Same, for `trace.outcome`. Note `done`/`success` are NOT accepted: the schema
+/// distinguishes completed from partial, and silently mapping a synonym would
+/// record a claim the agent did not make.
+pub fn parse_trace_outcome(value: &str) -> Result<String, ParseHarnessValueError> {
+    match normalize_token(value).as_str() {
+        "completed" => Ok("completed".to_owned()),
+        "blocked" => Ok("blocked".to_owned()),
+        "partial" => Ok("partial".to_owned()),
+        "failed" => Ok("failed".to_owned()),
+        _ => Err(ParseHarnessValueError::TraceOutcome(value.to_owned())),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,6 +120,10 @@ impl FromStr for RiskLane {
 
 pub const RISK_LANE_HELP: &str =
     "Accepted lanes: tiny, normal, high-risk. Use tiny instead of low.";
+
+
+pub const TRACE_OUTCOME_HELP: &str =
+    "Accepted outcomes: completed, blocked, partial, failed.";
 
 pub const RESPONSIBILITIES: &[&str] = &[
     "Task specification",
@@ -1196,6 +1232,26 @@ pub fn proof_display(value: i64, numeric: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_story_status_and_normalizes() {
+        assert_eq!(parse_story_status("implemented").unwrap(), "implemented");
+        assert_eq!(parse_story_status("In Progress").unwrap(), "in_progress");
+        // `done` is a common guess but not a real status — reject it by name.
+        let err = parse_story_status("done").unwrap_err();
+        assert!(matches!(err, ParseHarnessValueError::StoryStatus(_)));
+        assert!(err.to_string().contains("planned, in_progress, implemented"));
+    }
+
+    #[test]
+    fn parses_trace_outcome_and_rejects_synonyms() {
+        assert_eq!(parse_trace_outcome("completed").unwrap(), "completed");
+        assert_eq!(parse_trace_outcome("Partial").unwrap(), "partial");
+        // `success` reads as completed but is not in the schema; never silently map it.
+        let err = parse_trace_outcome("success").unwrap_err();
+        assert!(matches!(err, ParseHarnessValueError::TraceOutcome(_)));
+        assert!(err.to_string().contains("completed, blocked, partial, or failed"));
+    }
 
     #[test]
     fn parses_input_type_aliases() {

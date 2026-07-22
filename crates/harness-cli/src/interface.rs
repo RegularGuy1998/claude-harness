@@ -16,7 +16,8 @@ use crate::domain::{
     validate_responsibility, validate_tool_kind, BacklogFilter, BacklogRecord, BoolFlag,
     ContextScoreResult, CsvList, DecisionRecord, FrictionRecord, HarnessStats, ImprovementProposal,
     InputType, IntakeRecord, InterventionRecord, RiskLane, StoryMatrixRecord, StoryVerifyAllResult,
-    ToolEntry, TraceQualityTier, TraceRecord, TraceScoreResult, RISK_LANE_HELP,
+    ToolEntry, TraceQualityTier, TraceRecord, TraceScoreResult, parse_story_status,
+    parse_trace_outcome, RISK_LANE_HELP, TRACE_OUTCOME_HELP,
 };
 use crate::infrastructure::ToolCheckResult;
 
@@ -50,6 +51,7 @@ enum Command {
     /// Record a human, review, CI, or agent intervention.
     Intervention(InterventionArgs),
     /// Record an agent execution trace.
+    #[command(after_help = TRACE_OUTCOME_HELP)]
     Trace(TraceArgs),
     /// Capture or show the project context-pack pointer.
     Context(ContextArgs),
@@ -145,7 +147,8 @@ enum StoryAction {
     #[command(after_help = RISK_LANE_HELP)]
     Add(StoryAddArgs),
     #[command(
-        after_help = "Proof flags use numeric booleans: --unit 1 --integration 1 --e2e 0 --platform 0. Do not use yes/no."
+        after_help = "Proof flags use numeric booleans: --unit 1 --integration 1 --e2e 0 --platform 0. Do not use yes/no.
+Accepted statuses: planned, in_progress, implemented, changed, retired."
     )]
     Update(StoryUpdateArgs),
     #[command(
@@ -532,7 +535,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
             StoryAction::Update(args) => {
                 service.update_story(StoryUpdateInput {
                     id: args.id.clone(),
-                    status: args.status,
+                    status: args.status.map(|value| parse_story_status(&value)).transpose()?,
                     evidence: args.evidence,
                     unit: parse_optional_bool("story update: --unit", args.unit)?,
                     integration: parse_optional_bool(
@@ -668,7 +671,7 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 intake_id: parse_optional_integer("trace: --intake", args.intake)?,
                 story_id: args.story,
                 agent: args.agent,
-                outcome: args.outcome,
+                outcome: args.outcome.map(|value| parse_trace_outcome(&value)).transpose()?,
                 duration_seconds: parse_optional_integer("trace: --duration", args.duration)?,
                 token_estimate: parse_optional_integer("trace: --tokens", args.tokens)?,
                 friction: args.friction,

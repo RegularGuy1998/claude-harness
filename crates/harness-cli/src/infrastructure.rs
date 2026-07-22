@@ -584,7 +584,7 @@ impl HarnessRepository for SqliteHarnessRepository {
         let output = Command::new(shell)
             .arg(flag)
             .arg(&verify_command)
-            .current_dir(&self.repo_root)
+            .current_dir(verify_dir(&self.repo_root))
             .output()?;
         let result = if output.status.success() {
             "pass"
@@ -638,7 +638,7 @@ impl HarnessRepository for SqliteHarnessRepository {
             let output = Command::new(shell)
                 .arg(flag)
                 .arg(&command)
-                .current_dir(&self.repo_root)
+                .current_dir(verify_dir(&self.repo_root))
                 .output()?;
             let result = if output.status.success() {
                 "pass"
@@ -700,7 +700,7 @@ impl HarnessRepository for SqliteHarnessRepository {
         let status = Command::new(shell)
             .arg(flag)
             .arg(&verify_command)
-            .current_dir(&self.repo_root)
+            .current_dir(verify_dir(&self.repo_root))
             .status()?;
         let result = if status.success() { "pass" } else { "fail" }.to_owned();
         connection.execute(
@@ -1969,6 +1969,23 @@ fn verifier_shell() -> (&'static str, &'static str) {
     }
 }
 
+/// The directory a story/decision verify command runs in. `repo_root` is the
+/// harness workspace (`.harness/`, holding harness.db + scripts/schema); a verify
+/// command is authored against the actual project, which is its parent — running
+/// it from `.harness/` made every repo-relative path match nothing and report
+/// "No test files found", which reads like a broken test rather than a wrong cwd.
+/// Older layouts where repo_root already IS the project root are left untouched.
+fn verify_dir(repo_root: &Path) -> PathBuf {
+    if repo_root.file_name().and_then(|name| name.to_str()) == Some(".harness") {
+        repo_root
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| repo_root.to_path_buf())
+    } else {
+        repo_root.to_path_buf()
+    }
+}
+
 fn is_decision_file_name(file_name: &str) -> bool {
     let Some((prefix, _)) = file_name.split_once('-') else {
         return false;
@@ -1997,6 +2014,21 @@ mod tests {
         ToolRegisterInput, TraceInput,
     };
     use crate::domain::{BacklogFilter, BoolFlag, CsvList, InputType, RiskLane, TraceQualityTier};
+
+    #[test]
+    fn verify_dir_uses_the_project_root_not_the_harness_workspace() {
+        // The launcher points HARNESS_REPO_ROOT at `.harness/`; a verify command
+        // must still run one level up, where the project's tests live.
+        assert_eq!(
+            verify_dir(Path::new("/proj/.harness")),
+            PathBuf::from("/proj"),
+        );
+        // A layout whose repo_root already is the project root is left as-is.
+        assert_eq!(
+            verify_dir(Path::new("/proj")),
+            PathBuf::from("/proj"),
+        );
+    }
 
     fn test_repository() -> (TempDir, SqliteHarnessRepository) {
         let temp_dir = tempfile::tempdir().unwrap();
