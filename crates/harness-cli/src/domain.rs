@@ -13,7 +13,9 @@ pub enum ParseHarnessValueError {
     Integer(String),
     #[error("{0} must be 0 or 1. Example: --unit 1 --integration 1 --e2e 0 --platform 0")]
     BoolFlag(String),
-    #[error("unknown story status '{0}'. Use: planned, in_progress, implemented, changed, or retired")]
+    #[error(
+        "unknown story status '{0}'. Use: planned, in_progress, implemented, changed, or retired"
+    )]
     StoryStatus(String),
     #[error("unknown trace outcome '{0}'. Use: completed, blocked, partial, or failed")]
     TraceOutcome(String),
@@ -121,9 +123,7 @@ impl FromStr for RiskLane {
 pub const RISK_LANE_HELP: &str =
     "Accepted lanes: tiny, normal, high-risk. Use tiny instead of low.";
 
-
-pub const TRACE_OUTCOME_HELP: &str =
-    "Accepted outcomes: completed, blocked, partial, failed.";
+pub const TRACE_OUTCOME_HELP: &str = "Accepted outcomes: completed, blocked, partial, failed.";
 
 pub const RESPONSIBILITIES: &[&str] = &[
     "Task specification",
@@ -1240,7 +1240,9 @@ mod tests {
         // `done` is a common guess but not a real status — reject it by name.
         let err = parse_story_status("done").unwrap_err();
         assert!(matches!(err, ParseHarnessValueError::StoryStatus(_)));
-        assert!(err.to_string().contains("planned, in_progress, implemented"));
+        assert!(err
+            .to_string()
+            .contains("planned, in_progress, implemented"));
     }
 
     #[test]
@@ -1250,7 +1252,9 @@ mod tests {
         // `success` reads as completed but is not in the schema; never silently map it.
         let err = parse_trace_outcome("success").unwrap_err();
         assert!(matches!(err, ParseHarnessValueError::TraceOutcome(_)));
-        assert!(err.to_string().contains("completed, blocked, partial, or failed"));
+        assert!(err
+            .to_string()
+            .contains("completed, blocked, partial, or failed"));
     }
 
     #[test]
