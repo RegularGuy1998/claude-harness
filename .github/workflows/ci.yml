@@ -1,0 +1,53 @@
+# PR CI for claude-harness.
+#
+# The harness-cli binary is released only on a `harness-cli-v*` tag, whose
+# workflow runs `cargo fmt --check` — but nothing checked PRs before merge, so a
+# PR could (and did, #1) land un-formatted and only surface as a failed release
+# build. This runs the Rust gates plus the hook integration suite on every PR and
+# every push to main, against a binary BUILT from the PR's source.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust (fmt + clippy + test)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+
+  hooks:
+    name: Hook integration suite
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # The hook suite runs the gates against a real harness-cli at
+      # tests/fixtures/bin/. Build it from THIS PR's source so the suite tests the
+      # code under review, not the last published release.
+      - name: Build harness-cli
+        run: cargo build --release -p harness-cli
+      - name: Stage the built binary as the test fixture
+        run: |
+          mkdir -p tests/fixtures/bin
+          cp target/release/harness-cli tests/fixtures/bin/harness-cli
+          chmod +x tests/fixtures/bin/harness-cli
+      - name: Run hook suite
+        run: bash tests/run-tests.sh

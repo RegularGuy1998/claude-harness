@@ -2806,7 +2806,7 @@ mod tests {
         assert!(proposals
             .iter()
             .all(|proposal| proposal.committed_backlog_id.is_some()));
-        assert!(repository.query_backlog(BacklogFilter::Open).unwrap().len() >= 1);
+        assert!(!repository.query_backlog(BacklogFilter::Open).unwrap().is_empty());
     }
 
     #[test]
