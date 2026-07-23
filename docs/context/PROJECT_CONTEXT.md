@@ -14,7 +14,7 @@ developers who install the plugin) working in governed repos.
 - Languages: Rust (the `harness-cli` binary); Bash polyglot wrappers (hooks/launcher); Markdown (skills/commands/docs).
 - Frameworks / runtime: clap 4 (CLI), rusqlite 0.39 (bundled SQLite — no system lib), sha2, thiserror.
 - Package manager: Cargo (workspace). Lockfile: `Cargo.lock`.
-- Notable versions / constraints: Rust edition 2021, workspace resolver 3. `harness-cli` version `0.1.13` pinned in lockstep with `scripts/harness-cli-release-tag` (`harness-cli-v0.1.13`). Plugin is at v0.1.0.
+- Notable versions / constraints: Rust edition 2021, workspace resolver 3. `harness-cli` version `0.1.14` pinned in lockstep with `scripts/harness-cli-release-tag` (`harness-cli-v0.1.14`). Plugin is at v0.1.0.
 
 ## Entry points & key paths
 - Entry point(s): `crates/harness-cli/src/main.rs` (binary). Plugin entry: `.claude-plugin/` hooks + `commands/*.md` slash commands.

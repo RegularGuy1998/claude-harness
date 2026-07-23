@@ -2024,10 +2024,7 @@ mod tests {
             PathBuf::from("/proj"),
         );
         // A layout whose repo_root already is the project root is left as-is.
-        assert_eq!(
-            verify_dir(Path::new("/proj")),
-            PathBuf::from("/proj"),
-        );
+        assert_eq!(verify_dir(Path::new("/proj")), PathBuf::from("/proj"),);
     }
 
     fn test_repository() -> (TempDir, SqliteHarnessRepository) {

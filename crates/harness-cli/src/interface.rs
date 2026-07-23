@@ -12,12 +12,12 @@ use crate::application::{
     StoryAddInput, StoryUpdateInput, ToolRegisterInput, TraceInput,
 };
 use crate::domain::{
-    normalize_capability, parse_optional_integer, parse_tool_args, proof_display,
-    validate_responsibility, validate_tool_kind, BacklogFilter, BacklogRecord, BoolFlag,
-    ContextScoreResult, CsvList, DecisionRecord, FrictionRecord, HarnessStats, ImprovementProposal,
-    InputType, IntakeRecord, InterventionRecord, RiskLane, StoryMatrixRecord, StoryVerifyAllResult,
-    ToolEntry, TraceQualityTier, TraceRecord, TraceScoreResult, parse_story_status,
-    parse_trace_outcome, RISK_LANE_HELP, TRACE_OUTCOME_HELP,
+    normalize_capability, parse_optional_integer, parse_story_status, parse_tool_args,
+    parse_trace_outcome, proof_display, validate_responsibility, validate_tool_kind, BacklogFilter,
+    BacklogRecord, BoolFlag, ContextScoreResult, CsvList, DecisionRecord, FrictionRecord,
+    HarnessStats, ImprovementProposal, InputType, IntakeRecord, InterventionRecord, RiskLane,
+    StoryMatrixRecord, StoryVerifyAllResult, ToolEntry, TraceQualityTier, TraceRecord,
+    TraceScoreResult, RISK_LANE_HELP, TRACE_OUTCOME_HELP,
 };
 use crate::infrastructure::ToolCheckResult;
 
@@ -535,7 +535,10 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
             StoryAction::Update(args) => {
                 service.update_story(StoryUpdateInput {
                     id: args.id.clone(),
-                    status: args.status.map(|value| parse_story_status(&value)).transpose()?,
+                    status: args
+                        .status
+                        .map(|value| parse_story_status(&value))
+                        .transpose()?,
                     evidence: args.evidence,
                     unit: parse_optional_bool("story update: --unit", args.unit)?,
                     integration: parse_optional_bool(
@@ -671,7 +674,10 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 intake_id: parse_optional_integer("trace: --intake", args.intake)?,
                 story_id: args.story,
                 agent: args.agent,
-                outcome: args.outcome.map(|value| parse_trace_outcome(&value)).transpose()?,
+                outcome: args
+                    .outcome
+                    .map(|value| parse_trace_outcome(&value))
+                    .transpose()?,
                 duration_seconds: parse_optional_integer("trace: --duration", args.duration)?,
                 token_estimate: parse_optional_integer("trace: --tokens", args.tokens)?,
                 friction: args.friction,
